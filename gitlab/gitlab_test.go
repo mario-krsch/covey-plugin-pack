@@ -3836,3 +3836,48 @@ func TestWorkSignatureKeepsItsTextAndReadsBackAsItems(t *testing.T) {
 		t.Fatalf("items read back as %v, %v", items, ok)
 	}
 }
+
+// The checkout names the project's recipe when the tree carries one; a partial
+// checkout that did not fetch it does not claim it (covey spec/30).
+func TestCheckoutNamesTheRecipe(t *testing.T) {
+	full := tarGz(t, map[string]string{
+		"app-main-abc123/":                  "",
+		"app-main-abc123/covey.project.yml": "version: 1\n",
+		"app-main-abc123/src/main.go":       "package main",
+	})
+	sub := tarGz(t, map[string]string{
+		"app-main-abc123/":            "",
+		"app-main-abc123/src/main.go": "package main",
+	})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.RawQuery, "path=") {
+			w.Write(sub)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/archive.tar.gz") {
+			w.Write(full)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	cred := target.Credential{BaseURL: srv.URL, Token: "t"}
+
+	ctx := target.WithWorkdir(context.Background(), t.TempDir())
+	res, err := System{}.Execute(ctx, "checkout", []byte(`{"project_id":7,"ref":"main"}`), cred)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if co := res.(CheckoutResult); co.Recipe != "covey.project.yml" || !strings.Contains(co.Hint, "covey/env_up") {
+		t.Fatalf("a full checkout with a recipe must name it: %+v", co)
+	}
+
+	ctx = target.WithWorkdir(context.Background(), t.TempDir())
+	res, err = System{}.Execute(ctx, "checkout", []byte(`{"project_id":7,"ref":"main","path":"src"}`), cred)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if co := res.(CheckoutResult); co.Recipe != "" {
+		t.Fatalf("a partial checkout that did not fetch the recipe must not name it: %+v", co)
+	}
+}

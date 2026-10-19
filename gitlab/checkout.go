@@ -194,7 +194,10 @@ type CheckoutResult struct {
 	// sein Baum war weg. Der Hinweistext sagte es, in einem langen Absatz, und
 	// ging unter. Eine Liste geht nicht unter.
 	Evicted []string `json:"evicted,omitempty"`
-	Hint    string   `json:"hint"`
+	// Recipe is the path of covey.project.yml relative to Path, when the
+	// checkout contains one.
+	Recipe string `json:"recipe,omitempty"`
+	Hint   string `json:"hint"`
 }
 
 // Checkout materialises a project's source code in the sandbox: it downloads
@@ -301,6 +304,10 @@ func Checkout(ctx context.Context, gc *Client, projectID int, ref, subPath, work
 			"everything the project needs to build BEFORE you start working, because every checkout redraws the " +
 			"baseline commit and would swallow your changes. " + hint
 	}
+	recipe := recipeIn(rootDir)
+	if recipe != "" {
+		hint += recipeNote
+	}
 	return CheckoutResult{
 		Path:      rootDir,
 		Ref:       ref,
@@ -308,6 +315,7 @@ func Checkout(ctx context.Context, gc *Client, projectID int, ref, subPath, work
 		LocalPath: destDir,
 		Files:     files,
 		Evicted:   verdraengt,
+		Recipe:    recipe,
 		Hint:      hint,
 	}, nil
 }
@@ -574,4 +582,22 @@ func holeElternDateien(ctx context.Context, gc *Client, projectID int, ref, sub,
 		}
 	}
 	return geholt
+}
+
+// recipeFile is the project's own recipe (covey spec/30): how it is installed,
+// started and tested. The checkout names it when the tree has one, so an agent
+// does not have to know to look for it.
+const recipeFile = "covey.project.yml"
+
+// recipeNote is what the hint says when the tree carries a recipe.
+const recipeNote = " The repository carries its own recipe, covey.project.yml (field \"recipe\"): read it for how the project is installed, started and tested — and if you have covey/env_up, it sets the project up from it."
+
+// recipeIn names the recipe at the repository root, or nothing. Only a regular
+// file counts: what the archive brought, not a link pointing elsewhere.
+func recipeIn(root string) string {
+	info, err := os.Lstat(filepath.Join(root, recipeFile))
+	if err != nil || !info.Mode().IsRegular() {
+		return ""
+	}
+	return recipeFile
 }

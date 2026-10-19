@@ -936,3 +936,33 @@ func TestDescriptorRegistered(t *testing.T) {
 		t.Error("the prompt doc must explain the repo identifier")
 	}
 }
+
+// The checkout names the project's recipe when the tree carries one, and only
+// then (covey spec/30).
+func TestCheckoutNamesTheRecipe(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		files map[string]string
+		want  string
+	}{
+		{"with", map[string]string{"covey.project.yml": "version: 1\n", "README.md": "x"}, "covey.project.yml"},
+		{"without", map[string]string{"README.md": "x"}, ""},
+		{"only nested", map[string]string{"sub/covey.project.yml": "version: 1\n"}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			archive := tarGz(t, "acme-app-abc123", tc.files)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(archive) }))
+			defer srv.Close()
+			res, err := Checkout(context.Background(), newTestClient(srv), "acme/app", "main", t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Recipe != tc.want {
+				t.Fatalf("recipe = %q, want %q", res.Recipe, tc.want)
+			}
+			if hinted := strings.Contains(res.Hint, "covey.project.yml"); hinted != (tc.want != "") {
+				t.Fatalf("the hint must mention the recipe exactly when there is one: %q", res.Hint)
+			}
+		})
+	}
+}

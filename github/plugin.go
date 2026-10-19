@@ -870,7 +870,8 @@ func (System) PromptDoc() string {
    character for character from your playbook and invent no variants — a label that does not exist in the repository
    makes the call FAIL, which is loud but avoidable. Every label is its own list entry; an entry with a comma is refused.
    Reading the code: checkout {"repo":"…","ref":"branch|tag|sha (optional, default: the default branch)"} loads the
-   source into your sandbox and returns the local path. GitHub's archive cannot be narrowed to a subdirectory — if a
+   source into your sandbox and returns the local path ("recipe" names the project's covey.project.yml when it has
+   one). GitHub's archive cannot be narrowed to a subdirectory — if a
    repo is too large, work without a checkout: list_tree {"repo":"…","path":"…","ref":"…","recursive":true|false}
    lists one directory, or with recursive the whole subtree below path (max. 100 entries either way — narrow it
    with path; a folder whose subtree is too large to answer says so in its error, then list it flat or pick a

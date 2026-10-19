@@ -68,7 +68,10 @@ type CheckoutResult struct {
 	Repo  string `json:"repo"`
 	Ref   string `json:"ref,omitempty"`
 	Files int    `json:"files"`
-	Hint  string `json:"hint"`
+	// Recipe is the path of covey.project.yml relative to Path, when the
+	// checkout contains one.
+	Recipe string `json:"recipe,omitempty"`
+	Hint   string `json:"hint"`
 }
 
 // Checkout materialises a repository's source in the sandbox: it downloads the
@@ -115,13 +118,19 @@ func Checkout(ctx context.Context, gc *Client, repo, ref, workdir string) (Check
 		return CheckoutResult{}, err
 	}
 	initGitBaseline(ctx, destDir)
+	recipe := recipeIn(destDir)
+	note := ""
+	if recipe != "" {
+		note = recipeNote
+	}
 	return CheckoutResult{
-		Path:  destDir,
-		Repo:  repo,
-		Ref:   ref,
-		Files: files,
+		Path:   destDir,
+		Repo:   repo,
+		Ref:    ref,
+		Files:  files,
+		Recipe: recipe,
 		Hint: "The source code is local — search and read it directly (Grep/Read/Bash). For the actual change hand the path to dev agent: the sub-agent works IN the project and gets that project's own rules there (CLAUDE.md, .claude/agents, skills), which you yourself do not see. The directory is a git repo with the upstream state as its baseline commit; the sub-agent reports changed files back. Dependency caches (node_modules and the like) survive across runs, so npm/pip/go install then runs incrementally." +
-			target.CheckoutPruneNote(target.PruneOldCheckouts(workdir, destDir)),
+			target.CheckoutPruneNote(target.PruneOldCheckouts(workdir, destDir)) + note,
 	}, nil
 }
 
@@ -323,4 +332,22 @@ func extractTarGzInto(r io.Reader, destDir string) (files int, err error) {
 // permitted" alone says nothing about which archive entry caused it.
 func unsafePath(name string, err error) error {
 	return fmt.Errorf("unsafe path in the archive: %q: %w", name, err)
+}
+
+// recipeFile is the project's own recipe (covey spec/30): how it is installed,
+// started and tested. The checkout names it when the tree has one, so an agent
+// does not have to know to look for it.
+const recipeFile = "covey.project.yml"
+
+// recipeNote is what the hint says when the tree carries a recipe.
+const recipeNote = " The repository carries its own recipe, covey.project.yml (field \"recipe\"): read it for how the project is installed, started and tested — and if you have covey/env_up, it sets the project up from it."
+
+// recipeIn names the recipe at the repository root, or nothing. Only a regular
+// file counts: what the archive brought, not a link pointing elsewhere.
+func recipeIn(root string) string {
+	info, err := os.Lstat(filepath.Join(root, recipeFile))
+	if err != nil || !info.Mode().IsRegular() {
+		return ""
+	}
+	return recipeFile
 }

@@ -1487,7 +1487,8 @@ const promptDocActions = `Available GitLab actions: list_projects {}, list_issue
    You build that reference into the comment_mr body so that the screenshot is visible directly in the merge request — that
    is how you support a UI behaviour or a defect with a picture, not only with words.
    checkout {"project_id":N,"ref":"branch|tag|sha (optional, default: the default branch)","path":"subdirectory (optional)"} —
-   loads the project's source into your sandbox and returns the repository root in "path". ONE checkout without
+   loads the project's source into your sandbox and returns the repository root in "path" ("recipe" names the
+   project's covey.project.yml when it has one). ONE checkout without
    "path" is the normal case and gets you the whole project. Only if that fails on the repo size do you fetch
    subdirectories with "path": they land at their upstream place UNDER the same root and grow into one working
    tree, so fetch everything the project needs to build BEFORE you start working — every checkout redraws the
