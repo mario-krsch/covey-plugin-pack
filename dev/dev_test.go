@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -444,5 +445,17 @@ func TestDevImplementsScopedDocSystem(t *testing.T) {
 		PromptDocForScopes([]string) string
 	}); !ok {
 		t.Fatal("dev must implement ScopedDocSystem")
+	}
+}
+
+// The grant for recipe MCP servers is a scope of its own (covey spec/30):
+// covey checks it when it builds the run, and the descriptor has to offer it.
+func TestDescriptorOffersTheMCPScope(t *testing.T) {
+	d, ok := target.Describe("dev")
+	if !ok {
+		t.Fatal("dev is not registered")
+	}
+	if !slices.Contains(d.Scopes, "mcp") {
+		t.Fatalf("scopes %v lack mcp", d.Scopes)
 	}
 }

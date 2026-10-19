@@ -26,7 +26,7 @@ func init() {
 		Description:   "The agent's own computer: run shell commands in the sandbox (exec), manage long-running processes (start/stop/logs/list) — dev servers, databases, headless Chrome — and hand the actual programming work to a sub-agent inside the project checkout (agent). The sub-agent works with the project's own Claude Code harness (CLAUDE.md, .claude/agents, skills, commands) and reaches no target systems while doing so. Runs entirely in the sandbox daemon; needs no secrets.",
 		Kind:          "builtin",
 		Category:      target.CategoryDev,
-		Scopes:        []string{"exec", "processes", "agent"},
+		Scopes:        []string{"exec", "processes", "agent", "mcp"},
 		System:        System{},
 		NoCredentials: true,
 		SetupDoc: `1. Activate the plugin here — no secrets are needed, all actions run
@@ -48,7 +48,16 @@ sub-agent runs hermetically — no action proxy, hence no access to GitLab,
 email or other target systems; commit and communication stay with the
 commissioning agent. Its cost counts against the same budget, its events are
 in the same recording (marked as a sub-run). Anyone who does not want this
-forbids the action centrally via a guard-rail on the subject dev:agent.`,
+forbids the action centrally via a guard-rail on the subject dev:agent.
+
+On the mcp scope: a project's covey.project.yml may name stdio MCP servers
+(marionette or the Dart MCP server for a Flutter application, say). With
+"mcp" in the agent's scope, covey starts them beside the runtime at the start
+of each run, from the recipes the agent set up with covey/env_up; without it,
+it leaves them out. It is not part of exec on purpose: exec runs a command the
+agent names and the recording shows, while here the platform starts a server
+before the first turn and its tools appear without anyone having named them.
+covey enforces this when it builds the run's configuration.`,
 	})
 	target.OnShutdown(super.shutdown)
 }
